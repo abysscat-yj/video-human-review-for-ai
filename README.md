@@ -111,6 +111,8 @@ You can also link straight to a moment: `http://localhost:8765/#v=renders/sunset
 
 ## FAQ
 
+**What if I start it again while it's already running?** It finds the running copy, stops it and takes over the same port, then opens the browser — so a desktop shortcut can simply be clicked again. If the port is used by some other program, it moves to the next free port and prints the new address.
+
 **Does it upload my videos?** No. It's a local server that only reads the folder you give it and writes the `*_review` folders next to your videos.
 
 **How exact is the frame number?** It's `floor(time × fps)` using the frame rate from `ffprobe`, and the screenshot is taken from the exact frame the player is showing. Without FFmpeg it assumes 30 fps.

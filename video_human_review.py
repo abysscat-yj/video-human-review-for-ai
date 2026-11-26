@@ -13,20 +13,25 @@ it is used to read the real frame rate. 只用标准库；装了 ffprobe 能读�
 """
 import argparse
 import base64
+import errno
 import json
 import mimetypes
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
+import time
+import urllib.request
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
+APP_ID = "video-human-review"
 
 HERE = Path(__file__).resolve().parent
 WEB = HERE / "web"
@@ -311,6 +316,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if u.path in ("/", "/index.html"):
                 return self._file(WEB / "index.html", "text/html; charset=utf-8")
+            if u.path == "/api/ping":  # lets a second launch find and restart this instance
+                return self._json({"app": APP_ID, "pid": os.getpid(), "root": str(ROOT), "version": __version__})
             if u.path == "/api/videos":
                 return self._json({"root": ROOT.name, "videos": list_videos()})
             if u.path == "/api/info":
@@ -368,6 +375,60 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": "bad request"}, 400)
 
 
+ADDR_IN_USE = {errno.EADDRINUSE, 48, 98, 10048}
+
+
+def running_instance(port: int):
+    """Return the /api/ping info if this tool is already listening on the port, else None."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/ping", timeout=1.5) as r:
+            info = json.loads(r.read().decode())
+        return info if info.get("app") == APP_ID else None
+    except Exception:
+        return None
+
+
+def try_bind(host: str, port: int):
+    try:
+        return ThreadingHTTPServer((host, port), Handler)
+    except OSError as e:
+        if e.errno in ADDR_IN_USE:
+            return None
+        raise
+
+
+def bind_or_restart(host: str, port: int):
+    """Bind the port. If an older copy of this tool holds it, stop that copy and take over;
+    if some other program holds it, move to the next free port."""
+    srv = try_bind(host, port)
+    if srv:
+        return srv, port
+    old = running_instance(port)
+    if old:
+        print(f"already running on port {port} (pid {old['pid']}) — restarting it", flush=True)
+        try:
+            os.kill(int(old["pid"]), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+        for i in range(50):  # wait up to ~10 s for the old copy to let go of the port
+            time.sleep(0.2)
+            srv = try_bind(host, port)
+            if srv:
+                return srv, port
+            if i == 25 and hasattr(signal, "SIGKILL"):
+                try:
+                    os.kill(int(old["pid"]), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError, OSError):
+                    pass
+        sys.exit(f"port {port} is still busy; stop the old process (pid {old['pid']}) or use --port")
+    for p in range(port + 1, port + 30):
+        srv = try_bind(host, p)
+        if srv:
+            print(f"port {port} is used by another program — using {p} instead", flush=True)
+            return srv, p
+    sys.exit(f"no free port near {port}; pick one with --port")
+
+
 def main():
     global ROOT
     ap = argparse.ArgumentParser(description="Video Human Review — frame-accurate video review notes for AI assistants.")
@@ -380,17 +441,21 @@ def main():
     ROOT = Path(a.root).expanduser().resolve()
     if not ROOT.is_dir():
         sys.exit(f"not a folder: {ROOT}")
-    srv = ThreadingHTTPServer((a.host, a.port), Handler)
-    url = f"http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{a.port}"
+    srv, port = bind_or_restart(a.host, a.port)
+    url = f"http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{port}"
     print(f"Video Human Review {__version__}  →  {url}\nvideos from: {ROOT}\n(Ctrl+C to stop)", flush=True)
     if not shutil.which("ffprobe"):
         print("note: ffprobe not found, assuming 30 fps (install FFmpeg for exact frame numbers)", flush=True)
     if a.open:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    if hasattr(signal, "SIGTERM"):  # stop cleanly when a newer launch asks us to make room
+        signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=srv.shutdown, daemon=True).start())
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        srv.server_close()
 
 
 if __name__ == "__main__":
