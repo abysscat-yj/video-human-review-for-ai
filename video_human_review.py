@@ -30,7 +30,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 APP_ID = "video-human-review"
 
 HERE = Path(__file__).resolve().parent
@@ -162,7 +162,8 @@ def list_videos():
                     n = len(json.loads(cj.read_text("utf-8"))["comments"])
                 except Exception:
                     pass
-            items.append({"path": rel(p), "mtime": p.stat().st_mtime, "comments": n})
+            items.append({"path": rel(p), "mtime": p.stat().st_mtime, "comments": n,
+                          "assets": len(load_assets(p)) if (review_dir(p) / "assets").exists() else 0})
     items.sort(key=lambda x: -x["mtime"])
     return items
 
@@ -261,6 +262,91 @@ def info_payload(video: Path, data: dict) -> dict:
     return {**data, "reviewDir": rel(rd), "mdPath": rel(md_path(rd)), "mdAbs": str(md_path(rd))}
 
 
+# ---------------------------------------------------------------- collected assets
+# Boxes cut out of a frame to keep as reusable material. They live in <review folder>/assets/:
+# assets.json (a list, one entry per box) plus <id>_crop.png and <id>_full.png for each entry.
+# An AI assistant reads the "inbox" entries, rebuilds them, and writes back status "candidate"
+# with "ai": {"render": "<id>_ai.png", ...}; the reviewer then approves or rejects in the tool.
+ASSET_STATUS = ("inbox", "candidate", "approved", "rejected")
+
+
+def assets_dir(video: Path) -> Path:
+    return review_dir(video) / "assets"
+
+
+def load_assets(video: Path) -> list:
+    f = assets_dir(video) / "assets.json"
+    if f.exists():
+        try:
+            data = json.loads(f.read_text("utf-8"))
+            return data if isinstance(data, list) else data.get("assets", [])
+        except Exception:
+            pass
+    return []
+
+
+def save_assets(video: Path, items: list):
+    ad = assets_dir(video)
+    ad.mkdir(parents=True, exist_ok=True)
+    items.sort(key=lambda a: a.get("id", ""))
+    tmp = ad / "assets.json.tmp"
+    tmp.write_text(json.dumps(items, ensure_ascii=False, indent=2), "utf-8")
+    tmp.replace(ad / "assets.json")
+
+
+def assets_payload(video: Path, items: list) -> dict:
+    ad = assets_dir(video)
+    return {"assets": items, "assetsDir": rel(ad), "assetsJson": str(ad / "assets.json")}
+
+
+def write_png(path: Path, data_url: str):
+    path.write_bytes(base64.b64decode(data_url.split(",", 1)[1]))
+
+
+def post_asset(video: Path, route: str, body: dict) -> dict:
+    items = load_assets(video)
+    ad = assets_dir(video)
+    if route == "/api/asset":
+        a = body["asset"]
+        old = next((x for x in items if x["id"] == a["id"]), None)
+        new = {
+            "id": a["id"], "video": str(video), "t": round(float(a["t"]), 3), "frame": int(a["frame"]),
+            "fps": a.get("fps"), "box": [round(float(x), 4) for x in a["box"]],
+            "cat": a.get("cat", ""), "name": a.get("name", ""), "note": a.get("note", ""),
+            "crop": f"{a['id']}_crop.png", "full": f"{a['id']}_full.png",
+            "status": "inbox", "ai": None, "verdict": None,
+            "created": (old or {}).get("created") or time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        if old:
+            # renaming or re-noting keeps the AI's work; moving the box or the frame sends it back to the inbox
+            same_cut = old.get("frame") == new["frame"] and old.get("box") == new["box"]
+            for k in ("status", "ai", "verdict"):
+                if same_cut and k in old:
+                    new[k] = old[k]
+            for k, v in old.items():  # keep fields an AI may have added
+                new.setdefault(k, v)
+        ad.mkdir(parents=True, exist_ok=True)
+        if body.get("crop"):
+            write_png(ad / new["crop"], body["crop"])
+        if body.get("full"):
+            write_png(ad / new["full"], body["full"])
+        items = [x for x in items if x["id"] != a["id"]] + [new]
+    elif route == "/api/asset/delete":
+        items = [x for x in items if x["id"] != body["id"]]
+        for f in ad.glob(f"{body['id']}_*"):
+            f.unlink()
+    elif route == "/api/asset/verdict":
+        for x in items:
+            if x["id"] == body["id"]:
+                x["status"] = "approved" if body.get("ok") else "rejected"
+                x["verdict"] = {"ok": bool(body.get("ok")), "text": body.get("text", ""),
+                                "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    else:
+        raise KeyError(route)
+    save_assets(video, items)
+    return assets_payload(video, items)
+
+
 # ---------------------------------------------------------------- http
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
@@ -270,6 +356,7 @@ class Handler(BaseHTTPRequestHandler):
         b = json.dumps(obj, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(b)))
         self.end_headers()
         self.wfile.write(b)
@@ -325,6 +412,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({**probe(v), **info_payload(v, load_comments(v))})
             if u.path == "/video":
                 return self._file(safe_path(q["v"][0]))
+            if u.path == "/api/assets":
+                v = safe_path(q["v"][0])
+                return self._json(assets_payload(v, load_assets(v)))
+            if u.path == "/asset":
+                v = safe_path(q["v"][0])
+                return self._file(assets_dir(v) / Path(q["f"][0]).name)
             if u.path == "/shot":
                 v = safe_path(q["v"][0])
                 return self._file(review_dir(v) / Path(q["f"][0]).name)
@@ -339,6 +432,8 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
         try:
             v = safe_path(body["video"])
+            if u.path.startswith("/api/asset"):
+                return self._json(post_asset(v, u.path, body))
             data = load_comments(v)
             if body.get("lang") in TEXT:
                 data["lang"] = body["lang"]

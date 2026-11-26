@@ -68,6 +68,26 @@
   .c .txt { white-space:pre-wrap; margin-top:4px; }
   .c .ops { display:flex; gap:6px; margin-top:6px; align-items:center; }
   .c .ops button { padding:1px 8px; font-size:12px; }
+  .vid .cnt.as { background:#b8892f; margin-left:4px; }
+  .mk.as { border-radius:1px; background:#e0b04a; top:16px; }
+  #tabs { display:flex; border-bottom:1px solid var(--line); }
+  #tabs button { flex:1; border:0; border-radius:0; background:transparent; padding:7px 0; color:var(--dim); border-bottom:2px solid transparent; }
+  #tabs button.on { color:var(--fg); border-bottom-color:var(--acc); }
+  #tabs button.as.on { border-bottom-color:#e0b04a; }
+  #acomposer { display:none; padding:10px 12px; border-bottom:1px solid #e0b04a; background:#221f18; }
+  #acomposer.show { display:block; }
+  #acomposer .row { display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+  #acomposer input, #acomposer textarea { width:100%; background:#14151a; border:1px solid var(--line); border-radius:6px; padding:5px 8px; }
+  #acomposer textarea { height:60px; resize:vertical; }
+  #apreview { width:100%; max-height:160px; object-fit:contain; background:#000; border-radius:4px; margin-top:6px; display:none; }
+  .cat { padding:1px 8px; font-size:12px; border-radius:10px; }
+  .cat.on { background:#4a3f26; border-color:#e0b04a; }
+  .st { font-size:11px; padding:0 6px; border-radius:8px; margin-left:6px; }
+  .st.inbox { background:#3a3d44; } .st.candidate { background:#8a5a12; } .st.approved { background:#2f6b45; } .st.rejected { background:#7a2e26; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px; }
+  .pair figure { margin:0; } .pair figcaption { font-size:11px; color:var(--dim); }
+  .pair img { margin-top:2px !important; background:#000; object-fit:contain; max-height:140px; }
+  .c .verdict { font-size:12px; color:var(--dim); margin-top:4px; white-space:pre-wrap; }
   #toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#333; padding:6px 14px; border-radius:6px; opacity:0; transition:opacity .2s; pointer-events:none; }
   #toast.show { opacity:1; }
 </style>
@@ -93,6 +113,7 @@
       <div id="ctrls">
         <button id="play" data-i18n="play"></button>
         <button id="addBtn" class="primary"><span data-i18n="addNote"></span> <kbd>C</kbd></button>
+        <button id="collectBtn"><span data-i18n="collect"></span> <kbd>A</kbd></button>
         <span id="tc"><span id="tcTime">0:00.000</span> · <span data-i18n="framePre"></span><input id="frameIn" value="0" data-i18n-title="frameTip"><span data-i18n="framePost"></span> / <span id="tcDur">0:00.000</span></span>
         <select id="rate">
           <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
@@ -113,6 +134,7 @@
       <div class="path" id="rdir"></div>
       <textarea id="general" data-i18n-ph="generalPh"></textarea>
     </div>
+    <div id="tabs"><button id="tabNotes" class="on"></button><button id="tabAssets" class="as"></button></div>
     <div id="composer">
       <div class="row" style="margin:0 0 6px">
         <b id="ctime"></b>
@@ -133,6 +155,17 @@
       <div class="row">
         <button class="primary" id="csave"><span data-i18n="save"></span> <kbd>⌘/Ctrl</kbd><kbd>↵</kbd></button>
         <button id="ccancel"><span data-i18n="cancel"></span> <kbd>Esc</kbd></button>
+      </div>
+    </div>
+    <div id="acomposer">
+      <div class="row" style="margin:0 0 4px"><b id="atime"></b><span class="hint" data-i18n="boxHint"></span></div>
+      <div class="row" id="cats" style="margin:0 0 6px"></div>
+      <input id="aname" data-i18n-ph="namePh" autocomplete="off">
+      <textarea id="anote" data-i18n-ph="assetNotePh" style="margin-top:6px"></textarea>
+      <img id="apreview">
+      <div class="row">
+        <button class="primary" id="asave"><span data-i18n="save"></span> <kbd>⌘/Ctrl</kbd><kbd>↵</kbd></button>
+        <button id="acancel"><span data-i18n="cancel"></span> <kbd>Esc</kbd></button>
       </div>
     </div>
     <div id="list"></div>
@@ -159,6 +192,15 @@ const I18N = {
     onlyMarks: '(marks only)', confirmDel: n => `Delete note #${n}?`, generalSaved: 'Overall notes saved',
     copied: 'Copied — paste it into your AI chat',
     handoff: p => `I finished reviewing the video. My notes are in ${p} (one screenshot per note in the same folder; numbered marks on each screenshot match the list). Please go through them one by one and fix each issue.`,
+    collect: 'Collect asset', tabNotes: n => `Notes ${n}`, tabAssets: n => `Assets ${n}`,
+    boxHint: 'Drag a box around what you want to keep', namePh: 'Name it (e.g. "moon over the camp gate")',
+    assetNotePh: 'What do you like about it? (optional)', needBox: 'Drag a box on the frame first',
+    assetsEmpty: 'No assets yet. Pause on a good frame and press <kbd>A</kbd>, then box what you want to keep.',
+    st: { inbox: 'inbox', candidate: 'AI rebuilt it — check', approved: 'approved', rejected: 'rejected' },
+    crop: 'Your box', aiRender: 'AI rebuild', pass: 'Approve', fail: 'Reject',
+    failWhy: 'What is off? (the AI fixes it from this)', confirmDelA: n => `Delete asset ${n}?`,
+    assetsHandoff: (p, n) => `I collected ${n} asset(s) from this video. They are listed in ${p} (each entry has the boxed crop and the clean full frame in the same folder). Please process the entries whose status is "inbox", and redo the "rejected" ones using the reason in their verdict.`,
+    cats: { '物件': 'Object', '布景': 'Set', '天和光': 'Sky & light', '特效': 'Effect', '构图镜头': 'Composition', '字': 'Lettering', '人物': 'Figure' },
   },
   zh: {
     search: '搜视频名…', pickVideo: '← 左边选一个视频', noVideos: '这个目录下没有找到视频。',
@@ -176,6 +218,15 @@ const I18N = {
     onlyMarks: '（只有圈画）', confirmDel: n => `删掉 #${n} 这条意见？`, generalSaved: '整体意见已保存',
     copied: '已复制，去和 AI 的对话框粘贴',
     handoff: p => `审完了，意见在 ${p}，每条的截图在同一个文件夹（截图上的编号和清单对应），请逐条按意见修改。`,
+    collect: '收素材', tabNotes: n => `意见 ${n}`, tabAssets: n => `素材 ${n}`,
+    boxHint: '在画面上框出想留下的部分', namePh: '起个名字（比如：汉水月夜，月亮压在营门上）',
+    assetNotePh: '喜欢它哪里（可不写）', needBox: '先在画面上框一块',
+    assetsEmpty: '还没有素材。暂停在好看的那一帧，按 <kbd>A</kbd>，框出想留下的部分。',
+    st: { inbox: '待处理', candidate: 'AI 做好了，请审', approved: '已通过', rejected: '不通过' },
+    crop: '你框的', aiRender: 'AI 复现', pass: '通过', fail: '不通过',
+    failWhy: '差在哪？（AI 按这句改）', confirmDelA: n => `删掉素材 ${n}？`,
+    assetsHandoff: (p, n) => `从这个视频收了 ${n} 条素材，清单在 ${p}（每条框出的截图和整帧原图在同一个文件夹），请处理状态是 inbox 的；rejected 的按 verdict 里写的理由重做。`,
+    cats: { '物件': '物件', '布景': '布景', '天和光': '天和光', '特效': '特效', '构图镜头': '构图镜头', '字': '字', '人物': '人物' },
   },
 };
 const qs = new URLSearchParams(location.search);
@@ -193,6 +244,7 @@ function applyLang() {
   $('#langBtn').textContent = lang === 'zh' ? 'EN' : '中文';
   $('#play').textContent = v.paused ? t('play') : t('pause');
   if (cur) { $('#rdir').textContent = t('savedTo') + info.mdPath; renderList(); }
+  renderTabs(); renderCats();
   renderVideos();
 }
 
@@ -202,6 +254,7 @@ const v = $('#v'), ov = $('#overlay'), octx = ov.getContext('2d'), stage = $('#s
 let videos = [], cur = null, info = { fps: 30 }, comments = [];
 let composing = null; // {id, time, frame, strokes:[], existing}
 let tool = 'rect', color = '#ff3b30', drawing = null, activeId = null;
+let tab = 'notes', assets = [], assetsInfo = {}, collecting = null; // collecting: {id, time, frame, box, cat, existing}
 
 const fps = () => info.fps || 30;
 const frameOf = s => Math.floor(s * fps() + 1e-4);
@@ -230,7 +283,7 @@ function renderVideos() {
     const el = document.createElement('div');
     el.className = 'vid' + (cur === it.path ? ' sel' : '');
     const when = new Date(it.mtime * 1000).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    el.innerHTML = (it.comments ? `<span class="cnt">${it.comments}</span>` : '') + '<div class="nm"></div><div class="dir"></div>';
+    el.innerHTML = (it.assets ? `<span class="cnt as">${it.assets}</span>` : '') + (it.comments ? `<span class="cnt">${it.comments}</span>` : '') + '<div class="nm"></div><div class="dir"></div>';
     el.querySelector('.nm').textContent = parts.at(-1);
     el.querySelector('.dir').textContent = (parts.length > 1 ? parts.slice(0, -1).join('/') + ' · ' : '') + when;
     el.onclick = () => openVideo(it.path);
@@ -241,6 +294,7 @@ $('#filter').oninput = renderVideos;
 
 async function openVideo(path, at) {
   if (composing) cancelCompose();
+  if (collecting) cancelCollect();
   cur = path; history.replaceState(null, '', location.pathname + location.search + '#v=' + encodeURIComponent(path));
   info = await api('/api/info?v=' + encodeURIComponent(path));
   comments = info.comments || [];
@@ -250,6 +304,7 @@ async function openVideo(path, at) {
   $('#empty').style.display = 'none'; $('#badge').style.display = '';
   v.src = '/video?v=' + encodeURIComponent(path);
   if (at != null) v.addEventListener('loadedmetadata', () => seek(at), { once: true });
+  await loadAssets();
   renderVideos(); renderList(); renderMarkers();
 }
 
@@ -265,7 +320,7 @@ $('#play').onclick = togglePlay;
 $('#rate').onchange = e => v.playbackRate = +e.target.value;
 v.addEventListener('play', () => $('#play').textContent = t('pause'));
 v.addEventListener('pause', () => $('#play').textContent = t('play'));
-v.addEventListener('click', () => { if (!composing) togglePlay(); });
+v.addEventListener('click', () => { if (!composing && !collecting) togglePlay(); });
 v.addEventListener('loadedmetadata', layoutOverlay);
 
 function tick() {
@@ -283,7 +338,7 @@ requestAnimationFrame(tick);
 const tl = $('#timeline');
 function tlSeek(e) { if (!v.duration) return; const r = tl.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * v.duration); }
 tl.addEventListener('mousedown', e => {
-  if (e.target.classList.contains('mk') || composing) return;
+  if (e.target.classList.contains('mk') || composing || collecting) return;
   v.pause(); tlSeek(e);
   const mv = ev => tlSeek(ev), up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
   addEventListener('mousemove', mv); addEventListener('mouseup', up);
@@ -298,6 +353,14 @@ function renderMarkers() {
     m.style.left = (c.time / v.duration * 100) + '%';
     m.title = fmt(c.time) + ' ' + (c.text || '');
     m.onclick = () => jumpTo(c);
+    box.appendChild(m);
+  }
+  for (const a of assets) {
+    const m = document.createElement('div');
+    m.className = 'mk as';
+    m.style.left = (a.t / v.duration * 100) + '%';
+    m.title = fmt(a.t) + ' ' + (a.name || '');
+    m.onclick = () => jumpToAsset(a);
     box.appendChild(m);
   }
 }
@@ -394,8 +457,18 @@ function drawAll(ctx, strokes, W, H) {
   strokes.forEach(st => drawStroke(ctx, st, W, H));
   strokes.forEach((st, i) => drawLabel(ctx, st, i + 1, W, H));  // labels on top of every line
 }
+function drawCollect(ctx, box, W, H) {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  if (!box) { ctx.fillRect(0, 0, W, H); return; }
+  const [x0, y0, x1, y1] = box.map((q, i) => q * (i % 2 ? H : W));
+  ctx.fillRect(0, 0, W, y0); ctx.fillRect(0, y1, W, H - y1);
+  ctx.fillRect(0, y0, x0, y1 - y0); ctx.fillRect(x1, y0, W - x1, y1 - y0);
+  ctx.strokeStyle = '#e0b04a'; ctx.lineWidth = Math.max(2, W / 400); ctx.setLineDash([W / 120, W / 200]);
+  ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.setLineDash([]);
+}
 function redraw() {
   octx.clearRect(0, 0, ov.width, ov.height);
+  if (collecting) { drawCollect(octx, collecting.box, ov.width, ov.height); return; }
   if (!composing) return;
   drawAll(octx, composing.strokes, ov.width, ov.height);
   if (drawing) drawStroke(octx, drawing, ov.width, ov.height);
@@ -433,6 +506,23 @@ li.addEventListener('keydown', e => {
 li.addEventListener('blur', () => finishLabel(true));
 
 ov.addEventListener('mousedown', e => {
+  if (collecting) {
+    e.preventDefault();
+    const a = normPt(e).map(q => Math.min(1, Math.max(0, q)));
+    const mv = ev => {
+      const b = normPt(ev).map(q => Math.min(1, Math.max(0, q)));
+      collecting.box = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+      redraw();
+    };
+    const up = () => {
+      removeEventListener('mousemove', mv); removeEventListener('mouseup', up);
+      const b = collecting.box;
+      if (b && (b[2] - b[0] < 0.01 || b[3] - b[1] < 0.01)) collecting.box = null;
+      redraw(); updatePreview(); $('#aname').focus();
+    };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up);
+    return;
+  }
   if (!composing) return;
   e.preventDefault();
   if (labeling) finishLabel(true);
@@ -466,6 +556,8 @@ function nextId() {
 }
 function startCompose(existing) {
   if (!cur) return;
+  if (collecting) cancelCollect();
+  setTab('notes');
   v.pause();
   if (existing) seek(existing.time);
   const s = existing ? existing.time : v.currentTime;
@@ -528,6 +620,8 @@ function jumpTo(c) {
   document.getElementById('c' + c.id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function renderList() {
+  renderTabs();
+  if (tab === 'assets') return renderAssets();
   const box = $('#list'); box.innerHTML = '';
   if (!cur) return;
   if (!comments.length) { box.innerHTML = `<div class="hint" style="padding:8px">${t('empty')}</div>`; return; }
@@ -564,14 +658,155 @@ $('#general').addEventListener('change', async e => {
 });
 $('#copyBtn').onclick = async () => {
   if (!cur) return;
-  const msg = t('handoff', info.mdAbs || info.mdPath);
+  const msg = tab === 'assets' ? t('assetsHandoff', assetsInfo.assetsJson || assetsInfo.assetsDir, assets.length) : t('handoff', info.mdAbs || info.mdPath);
   try { await navigator.clipboard.writeText(msg); toast(t('copied')); }
   catch { prompt('', msg); }
 };
 
+// ---------- collecting assets ----------
+const CATS = ['物件', '布景', '天和光', '特效', '构图镜头', '字', '人物'];
+let lastCat = localStorage.getItem('vhr-cat') || CATS[0];
+function setTab(x) { tab = x; renderList(); }
+function renderTabs() {
+  $('#tabNotes').textContent = t('tabNotes', comments.length || '');
+  $('#tabAssets').textContent = t('tabAssets', assets.length || '');
+  $('#tabNotes').classList.toggle('on', tab === 'notes');
+  $('#tabAssets').classList.toggle('on', tab === 'assets');
+}
+$('#tabNotes').onclick = () => setTab('notes');
+$('#tabAssets').onclick = () => setTab('assets');
+function renderCats() {
+  const box = $('#cats'); box.innerHTML = '';
+  const sel = collecting ? collecting.cat : lastCat;
+  for (const c of CATS) {
+    const b = document.createElement('button');
+    b.className = 'cat' + (c === sel ? ' on' : ''); b.textContent = t('cats')[c];
+    b.onclick = () => { if (collecting) { collecting.cat = c; lastCat = c; localStorage.setItem('vhr-cat', c); renderCats(); } };
+    box.appendChild(b);
+  }
+}
+async function loadAssets() {
+  if (!cur) return;
+  assetsInfo = await api('/api/assets?v=' + encodeURIComponent(cur));
+  assets = assetsInfo.assets || [];
+}
+function nextAssetId() {
+  const n = assets.reduce((m, a) => Math.max(m, parseInt(String(a.id).replace(/\D/g, ''), 10) || 0), 0) + 1;
+  return 'a' + String(n).padStart(3, '0');
+}
+function startCollect(existing) {
+  if (!cur) return;
+  if (composing) cancelCompose();
+  v.pause();
+  if (existing) seek(existing.t);
+  const s = existing ? existing.t : v.currentTime;
+  collecting = { id: existing ? existing.id : nextAssetId(), time: s, frame: existing ? existing.frame : frameOf(s),
+    box: existing ? [...existing.box] : null, cat: existing ? existing.cat : lastCat, existing };
+  stage.classList.remove('idle');
+  setTab('assets');
+  $('#acomposer').classList.add('show');
+  $('#atime').textContent = `${collecting.id} · ${fmt(s)} · ${t('frameN', collecting.frame)}`;
+  $('#aname').value = existing ? existing.name : '';
+  $('#anote').value = existing ? existing.note : '';
+  renderCats(); layoutOverlay();
+  if (existing) v.addEventListener('seeked', updatePreview, { once: true }); else updatePreview();
+}
+function cancelCollect() {
+  collecting = null; stage.classList.add('idle');
+  $('#acomposer').classList.remove('show'); $('#apreview').style.display = 'none'; redraw();
+}
+function grabFrame() {
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  return c;
+}
+function cropOf(full, box) {
+  const [x0, y0, x1, y1] = [box[0] * full.width, box[1] * full.height, box[2] * full.width, box[3] * full.height].map(Math.round);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, x1 - x0); c.height = Math.max(1, y1 - y0);
+  c.getContext('2d').drawImage(full, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+  return c;
+}
+function updatePreview() {
+  const img = $('#apreview');
+  if (!collecting || !collecting.box || !v.videoWidth) { img.style.display = 'none'; return; }
+  img.src = cropOf(grabFrame(), collecting.box).toDataURL('image/jpeg', 0.8); img.style.display = 'block';
+}
+async function saveCollect() {
+  if (!collecting) return;
+  if (!collecting.box) { toast(t('needBox')); return; }
+  if (Math.abs(v.currentTime - collecting.time) > 1e-3 || v.seeking) {
+    v.currentTime = collecting.time; await new Promise(r => v.addEventListener('seeked', r, { once: true }));
+  }
+  const full = grabFrame();
+  const a = { id: collecting.id, t: collecting.time, frame: collecting.frame, fps: fps(), box: collecting.box,
+    cat: collecting.cat, name: $('#aname').value.trim(), note: $('#anote').value.trim() };
+  assetsInfo = await api('/api/asset', { video: cur, asset: a, crop: cropOf(full, collecting.box).toDataURL('image/png'), full: full.toDataURL('image/png') });
+  assets = assetsInfo.assets; activeId = a.id;
+  cancelCollect(); renderList(); renderMarkers(); bumpAssets();
+  toast(t('saved'));
+}
+$('#asave').onclick = saveCollect;
+$('#acancel').onclick = cancelCollect;
+$('#collectBtn').onclick = () => startCollect();
+for (const id of ['#aname', '#anote']) $(id).addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); saveCollect(); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelCollect(); }
+});
+function bumpAssets() { const it = videos.find(x => x.path === cur); if (it) { it.assets = assets.length; renderVideos(); } }
+function jumpToAsset(a) {
+  if (composing) cancelCompose();
+  if (collecting) cancelCollect();
+  v.pause(); seek(a.t); activeId = a.id; setTab('assets');
+  document.getElementById('a' + a.id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+const aimg = f => `/asset?v=${encodeURIComponent(cur)}&f=${encodeURIComponent(f)}&_=${Date.now() % 100000}`;
+function renderAssets() {
+  const box = $('#list'); box.innerHTML = '';
+  if (!cur) return;
+  if (!assets.length) { box.innerHTML = `<div class="hint" style="padding:8px">${t('assetsEmpty')}</div>`; return; }
+  [...assets].reverse().forEach(a => {
+    const el = document.createElement('div');
+    el.id = 'a' + a.id;
+    el.className = 'c' + (a.id === activeId ? ' active' : '');
+    const st = a.status || 'inbox', render = a.ai && a.ai.render;
+    el.innerHTML = `<div><span class="t">${a.id} · ${fmt(a.t)} · ${t('frameN', a.frame)}</span><span class="st ${st}">${t('st')[st] || st}</span></div>
+      <div class="txt"><b></b> <span class="hint"></span></div><div class="nt hint"></div>
+      ${render ? `<div class="pair"><figure><figcaption>${t('crop')}</figcaption><img src="${aimg(a.crop)}"></figure><figure><figcaption>${t('aiRender')}</figcaption><img src="${aimg(render)}"></figure></div>`
+               : `<img loading="lazy" src="${aimg(a.crop)}" style="background:#000;object-fit:contain;max-height:180px">`}
+      <div class="verdict"></div>
+      <div class="ops">${render && st !== 'approved' ? `<button data-a="pass">${t('pass')}</button><button data-a="fail">${t('fail')}</button>` : ''}<span style="flex:1"></span><button data-a="edit">${t('edit')}</button><button data-a="del">${t('del')}</button></div>`;
+    el.querySelector('.txt b').textContent = a.name || '—';
+    el.querySelector('.txt .hint').textContent = t('cats')[a.cat] || a.cat || '';
+    el.querySelector('.nt').textContent = a.note || '';
+    const vd = a.verdict ? `${a.verdict.ok ? '✓' : '✗'} ${a.verdict.text || ''}` : '';
+    el.querySelector('.verdict').textContent = [a.ai && a.ai.note, vd].filter(Boolean).join('\n');
+    el.querySelector('.t').onclick = () => jumpToAsset(a);
+    el.querySelectorAll('img').forEach(i => i.onclick = () => jumpToAsset(a));
+    const judge = async (ok, text) => { assetsInfo = await api('/api/asset/verdict', { video: cur, id: a.id, ok, text }); assets = assetsInfo.assets; renderList(); };
+    el.querySelector('[data-a=pass]')?.addEventListener('click', () => judge(true, ''));
+    el.querySelector('[data-a=fail]')?.addEventListener('click', () => { const why = prompt(t('failWhy'), ''); if (why !== null) judge(false, why.trim()); });
+    el.querySelector('[data-a=edit]').onclick = () => startCollect(a);
+    el.querySelector('[data-a=del]').onclick = async () => {
+      if (!confirm(t('confirmDelA', a.id))) return;
+      assetsInfo = await api('/api/asset/delete', { video: cur, id: a.id }); assets = assetsInfo.assets;
+      renderList(); renderMarkers(); bumpAssets();
+    };
+    box.appendChild(el);
+  });
+}
+// the AI writes back into assets.json while the tool is open; pick that up when the window comes back
+addEventListener('focus', async () => { if (cur && !collecting) { await loadAssets(); if (tab === 'assets') renderList(); renderMarkers(); } });
+
 // ---------- keyboard ----------
 addEventListener('keydown', e => {
   const typing = ['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName);
+  if (collecting) {
+    if (e.key === 'Escape') { e.preventDefault(); cancelCollect(); }
+    else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveCollect(); }
+    return;
+  }
   if (composing) {
     if (e.key === 'Escape') { e.preventDefault(); cancelCompose(); }
     else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveCompose(); }
@@ -586,6 +821,7 @@ addEventListener('keydown', e => {
   else if (e.key === ',') { e.preventDefault(); stepFrames(-1); }
   else if (e.key === 'g' || e.key === 'G') { e.preventDefault(); v.pause(); $('#frameIn').focus(); $('#frameIn').select(); }
   else if (e.key === 'c' || e.key === 'C' || e.key === 'Enter') { e.preventDefault(); startCompose(); }
+  else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); startCollect(); }
   else if (e.key === ']' || e.key === '[') {
     const s = v.currentTime, dir = e.key === ']' ? 1 : -1;
     const list = dir > 0 ? comments.filter(c => c.time > s + 1e-3) : comments.filter(c => c.time < s - 1e-3).reverse();

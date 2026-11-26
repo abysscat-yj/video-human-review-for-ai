@@ -22,6 +22,7 @@ It's a tiny local web app: one Python file, no dependencies, nothing uploaded an
 - **Draw on the frame** — box, arrow, freehand pen and free text, in four colors. Every mark gets its own label right next to it, numbered ①②③ so the text and the picture line up.
 - **AI-readable export** — `review.md` lists each note with time, frame, the mark's position in words (`box (top-middle, x 24%–76%, y 10%–28%)`) and your label, plus a path to the annotated screenshot and a clean copy of the frame.
 - **Review workflow** — notes show up as dots on the timeline, newest first in the sidebar; edit, delete, tick "Done", jump between notes with `[` `]`, and keep overall notes that aren't tied to a frame.
+- **Collect assets** — box the part of a good frame you want to keep (an object, a sky, a fire, a composition); it is saved as a crop plus the clean full frame for your AI to rebuild as reusable material. The AI's rebuild shows next to your crop, and you approve or reject it.
 - **English / 中文** — switch the UI any time; the Markdown file is rewritten in the same language.
 - **Local and private** — serves only the folder you point it at, binds to `127.0.0.1` by default, and writes notes next to each video.
 
@@ -59,6 +60,36 @@ Every video under that folder (`.mp4 .mov .m4v .webm .mkv`, subfolders included)
 The screenshot is saved at the video's full resolution, with your marks drawn on it:
 
 ![Annotated screenshot: ① box around the title, ② arrow at the sun, each with a label](docs/annotated-en.png)
+
+## Collecting assets
+
+When a frame looks good, keep the good part so your AI can turn it into something reusable.
+
+1. Pause on the frame and press **`A`** (or click **Collect asset**).
+2. Drag a box around what you want to keep. Everything outside it dims, and the sidebar shows the crop.
+3. Pick a category (Object, Set, Sky & light, Effect, Composition, Lettering, Figure), give it a name and say what you like about it, then press **`⌘/Ctrl + Enter`**.
+
+Collected assets appear under the **Assets** tab and as gold ticks on the timeline. Files go into `assets/` inside the review folder:
+
+```
+opening_draft_review/
+└── assets/
+    ├── assets.json        ← the list; your AI reads it and writes back to it
+    ├── a001_crop.png      ← the boxed part, at full resolution
+    ├── a001_full.png      ← the clean full frame
+    └── a001_ai.png        ← the AI's rebuild, once it has one (optional)
+```
+
+Each entry in `assets.json` records the video path, seconds, frame, fps, the box (`[x0, y0, x1, y1]` as 0–1 fractions), category, name and note, plus a status:
+
+| Status | Set by | Meaning |
+|---|---|---|
+| `inbox` | the tool | just collected, waiting for the AI |
+| `candidate` | the AI | rebuilt; `ai.render` names an image of the rebuild for you to check |
+| `approved` | you | you clicked **Approve** |
+| `rejected` | you | you clicked **Reject** and gave a reason (`verdict.text`); the AI redoes it and sets it back to `candidate` |
+
+**Copy for AI** on the Assets tab copies a line pointing at `assets.json`. How the AI turns an asset into code or a recipe is up to your project; the tool only collects and reviews. After the AI writes back, switch back to the browser window and the list refreshes. Changing only the name, note or category keeps the AI's work; redrawing the box sends the entry back to `inbox`.
 
 ## What your AI gets
 
@@ -102,6 +133,7 @@ Tick **Done** on a note once it's fixed and the checkbox in `review.md` follows.
 | `,` `.` or `Shift` + `←` `→` | back / forward 1 frame |
 | `G` | type a frame number and jump |
 | `C` or `Enter` | write a note on this frame |
+| `A` | collect an asset on this frame (draw a box) |
 | `[` `]` | previous / next note |
 | `⌘/Ctrl + Enter` | save the note |
 | `Esc` | cancel (or skip the label you're typing) |
