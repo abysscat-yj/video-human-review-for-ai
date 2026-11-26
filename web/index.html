@@ -1,0 +1,617 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame Review</title>
+<style>
+  :root { --bg:#16171a; --panel:#1f2125; --line:#2e3137; --fg:#e8e6e1; --dim:#8d9099; --acc:#e0533d; --ok:#5fb37a; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font: 14px/1.5 -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  select { background:#2b2e34; border:1px solid var(--line); border-radius:6px; padding:3px 6px; }
+  button { background:#2b2e34; border:1px solid var(--line); border-radius:6px; padding:4px 10px; cursor:pointer; }
+  button:hover { background:#353941; }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#fff; }
+  button.on { background:#4a3a36; border-color:var(--acc); }
+  kbd { background:#2b2e34; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:12px; }
+  #app { display:grid; grid-template-columns: 230px 1fr 340px; height:100%; }
+  #left, #right { background:var(--panel); overflow:auto; }
+  #left { border-right:1px solid var(--line); padding:10px; }
+  #right { border-left:1px solid var(--line); display:flex; flex-direction:column; }
+  #brand { display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  #brand b { flex:1; letter-spacing:.3px; }
+  #langBtn { padding:1px 8px; font-size:12px; }
+  #filter { width:100%; padding:6px 8px; background:#14151a; border:1px solid var(--line); border-radius:6px; margin-bottom:8px; }
+  .vid { padding:6px 8px; border-radius:6px; cursor:pointer; word-break:break-all; font-size:13px; }
+  .vid:hover { background:#2a2d33; }
+  .vid.sel { background:#3a2c29; outline:1px solid var(--acc); }
+  .vid .dir { color:var(--dim); font-size:11px; }
+  .vid .cnt { float:right; background:var(--acc); color:#fff; border-radius:9px; padding:0 6px; font-size:11px; }
+  #center { display:flex; flex-direction:column; min-width:0; }
+  #stage { position:relative; flex:1; background:#000; min-height:0; }
+  #stage video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  #overlay { position:absolute; cursor:crosshair; }
+  #stage.idle #overlay { pointer-events:none; }
+  #labelInput { position:absolute; display:none; z-index:5; padding:5px 8px; background:rgba(0,0,0,.85); color:#fff; border:2px solid #ff3b30; border-radius:6px; outline:none; }
+  #badge { position:absolute; left:12px; top:10px; background:rgba(0,0,0,.65); padding:2px 8px; border-radius:4px; font-variant-numeric:tabular-nums; }
+  #empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--dim); }
+  #bar { padding:8px 12px; border-top:1px solid var(--line); background:var(--panel); }
+  #timeline { position:relative; height:26px; cursor:pointer; margin-bottom:6px; }
+  #track { position:absolute; left:0; right:0; top:11px; height:4px; background:#3a3d44; border-radius:2px; }
+  #played { position:absolute; left:0; top:11px; height:4px; background:#c9c6bf; border-radius:2px; }
+  #head { position:absolute; top:5px; width:2px; height:16px; background:#fff; }
+  .mk { position:absolute; top:2px; width:8px; height:8px; margin-left:-4px; border-radius:50%; background:var(--acc); }
+  .mk.done { background:var(--ok); }
+  #ctrls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #ctrls .sp { flex:1; }
+  #tc { font-variant-numeric:tabular-nums; min-width:230px; }
+  #frameIn { width:64px; padding:1px 6px; background:#14151a; border:1px solid var(--line); border-radius:4px; text-align:center; font-variant-numeric:tabular-nums; }
+  #frameIn:focus { border-color:var(--acc); outline:none; }
+  .hint { color:var(--dim); font-size:12px; }
+  #composer { display:none; padding:10px 12px; border-bottom:1px solid var(--acc); background:#221c1b; }
+  #composer.show { display:block; }
+  #composer textarea { width:100%; height:110px; background:#14151a; border:1px solid var(--line); border-radius:6px; padding:6px 8px; resize:vertical; }
+  #composer .row { display:flex; gap:6px; align-items:center; margin-top:6px; flex-wrap:wrap; }
+  .swatch { width:20px; height:20px; border-radius:50%; border:2px solid transparent; cursor:pointer; }
+  .swatch.on { border-color:#fff; }
+  #rhead { padding:10px 12px; border-bottom:1px solid var(--line); }
+  #rhead .path { color:var(--dim); font-size:12px; word-break:break-all; }
+  #general { width:100%; height:60px; margin-top:6px; background:#14151a; border:1px solid var(--line); border-radius:6px; padding:6px 8px; resize:vertical; }
+  #list { flex:1; overflow:auto; padding:8px; }
+  .c { border:1px solid var(--line); border-radius:8px; padding:8px; margin-bottom:8px; background:#24262b; }
+  .c.active { border-color:var(--acc); }
+  .c.done { opacity:.55; }
+  .c .t { font-variant-numeric:tabular-nums; color:#f0a08f; cursor:pointer; }
+  .c img { width:100%; border-radius:4px; margin-top:6px; cursor:pointer; display:block; }
+  .c .txt { white-space:pre-wrap; margin-top:4px; }
+  .c .ops { display:flex; gap:6px; margin-top:6px; align-items:center; }
+  .c .ops button { padding:1px 8px; font-size:12px; }
+  #toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:#333; padding:6px 14px; border-radius:6px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="left">
+    <div id="brand"><b>Frame Review</b><button id="langBtn" title="中文 / English"></button></div>
+    <input id="filter" data-i18n-ph="search">
+    <div id="vids"></div>
+  </div>
+
+  <div id="center">
+    <div id="stage" class="idle">
+      <video id="v" preload="auto" playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div id="badge" style="display:none"></div>
+      <input id="labelInput" autocomplete="off">
+      <div id="empty" data-i18n="pickVideo"></div>
+    </div>
+    <div id="bar">
+      <div id="timeline"><div id="track"></div><div id="played"></div><div id="markers"></div><div id="head"></div></div>
+      <div id="ctrls">
+        <button id="play" data-i18n="play"></button>
+        <button id="addBtn" class="primary"><span data-i18n="addNote"></span> <kbd>C</kbd></button>
+        <span id="tc"><span id="tcTime">0:00.000</span> · <span data-i18n="framePre"></span><input id="frameIn" value="0" data-i18n-title="frameTip"><span data-i18n="framePost"></span> / <span id="tcDur">0:00.000</span></span>
+        <select id="rate">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+        </select>
+        <span class="sp"></span>
+        <span class="hint" data-i18n-html="keys"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="rhead">
+      <div style="display:flex;align-items:center;gap:8px">
+        <b id="vname">—</b><span style="flex:1"></span>
+        <button id="copyBtn" data-i18n="copyAI" data-i18n-title="copyTip"></button>
+      </div>
+      <div class="path" id="rdir"></div>
+      <textarea id="general" data-i18n-ph="generalPh"></textarea>
+    </div>
+    <div id="composer">
+      <div class="row" style="margin:0 0 6px">
+        <b id="ctime"></b>
+        <span class="hint" data-i18n="drawHint"></span>
+      </div>
+      <div class="row" style="margin:0 0 6px">
+        <button data-tool="rect" class="tool on" data-i18n="tRect"></button>
+        <button data-tool="arrow" class="tool" data-i18n="tArrow"></button>
+        <button data-tool="pen" class="tool" data-i18n="tPen"></button>
+        <button data-tool="text" class="tool" data-i18n="tText"></button>
+        <span class="swatch on" data-c="#ff3b30" style="background:#ff3b30"></span>
+        <span class="swatch" data-c="#ffd60a" style="background:#ffd60a"></span>
+        <span class="swatch" data-c="#32d74b" style="background:#32d74b"></span>
+        <span class="swatch" data-c="#ffffff" style="background:#ffffff"></span>
+        <button id="undo" data-i18n="undo"></button>
+      </div>
+      <textarea id="ctext" data-i18n-ph="notePh"></textarea>
+      <div class="row">
+        <button class="primary" id="csave"><span data-i18n="save"></span> <kbd>⌘/Ctrl</kbd><kbd>↵</kbd></button>
+        <button id="ccancel"><span data-i18n="cancel"></span> <kbd>Esc</kbd></button>
+      </div>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ---------- i18n ----------
+const I18N = {
+  en: {
+    search: 'Search videos…', pickVideo: '← Pick a video on the left', noVideos: 'No videos found under this folder.',
+    play: 'Play', pause: 'Pause', addNote: 'Note this frame',
+    framePre: 'frame ', framePost: '', frameTip: 'Type a frame number and press Enter (shortcut G)',
+    keys: '<kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> 1 s · <kbd>,</kbd><kbd>.</kbd> or <kbd>⇧</kbd>+<kbd>←</kbd><kbd>→</kbd> 1 frame · <kbd>G</kbd> go to frame · <kbd>[</kbd><kbd>]</kbd> prev/next note',
+    copyAI: 'Copy for AI', copyTip: 'Copy a one-line hand-off message to paste into your AI assistant',
+    generalPh: 'Overall notes (not tied to a frame)', savedTo: 'Notes are saved to: ',
+    drawHint: 'Draw a box / arrow on the frame, then type a label for it. "Text" puts words anywhere.',
+    tRect: 'Box', tArrow: 'Arrow', tPen: 'Pen', tText: 'Text', undo: 'Undo',
+    notePh: "What's wrong in this frame, and how should it change?", save: 'Save', cancel: 'Cancel',
+    labelPh: 'Label for this mark (Enter to confirm, optional)', textPh: 'Text to put on the frame',
+    frameN: f => `frame ${f}`, needContent: 'Write something or draw a mark first', saved: 'Saved',
+    empty: 'No notes yet. Pause on a frame and press <kbd>C</kbd>.', fixed: 'Done', edit: 'Edit', del: 'Delete',
+    onlyMarks: '(marks only)', confirmDel: n => `Delete note #${n}?`, generalSaved: 'Overall notes saved',
+    copied: 'Copied — paste it into your AI chat',
+    handoff: p => `I finished reviewing the video. My notes are in ${p} (one screenshot per note in the same folder; numbered marks on each screenshot match the list). Please go through them one by one and fix each issue.`,
+  },
+  zh: {
+    search: '搜视频名…', pickVideo: '← 左边选一个视频', noVideos: '这个目录下没有找到视频。',
+    play: '播放', pause: '暂停', addNote: '在这帧写意见',
+    framePre: '第 ', framePost: ' 帧', frameTip: '输入帧号回车跳转（快捷键 G）',
+    keys: '<kbd>空格</kbd> 播放/暂停 · <kbd>←</kbd><kbd>→</kbd> 一秒 · <kbd>,</kbd><kbd>.</kbd> 或 <kbd>⇧</kbd>+<kbd>←</kbd><kbd>→</kbd> 一帧 · <kbd>G</kbd> 输入帧号 · <kbd>[</kbd><kbd>]</kbd> 上/下一条意见',
+    copyAI: '复制给 AI', copyTip: '复制一句交接的话，粘贴到和 AI 助手的对话框',
+    generalPh: '整体意见（不针对某一帧的，可以写这里）', savedTo: '意见存到：',
+    drawHint: '在画面上画框/箭头，画完旁边会弹出输入框写这一处的意见；「文字」点哪写哪',
+    tRect: '框', tArrow: '箭头', tPen: '画笔', tText: '文字', undo: '撤销一笔',
+    notePh: '这一帧哪里不对、想怎么改……', save: '保存', cancel: '取消',
+    labelPh: '给它配一句（回车确定，可不写）', textPh: '写在画面上的字',
+    frameN: f => `第 ${f} 帧`, needContent: '写点字或者圈一下再保存', saved: '已保存',
+    empty: '还没有意见。暂停在要说的那一帧，按 <kbd>C</kbd>。', fixed: '已改', edit: '改', del: '删',
+    onlyMarks: '（只有圈画）', confirmDel: n => `删掉 #${n} 这条意见？`, generalSaved: '整体意见已保存',
+    copied: '已复制，去和 AI 的对话框粘贴',
+    handoff: p => `审完了，意见在 ${p}，每条的截图在同一个文件夹（截图上的编号和清单对应），请逐条按意见修改。`,
+  },
+};
+const qs = new URLSearchParams(location.search);
+// language: ?lang=zh|en  >  last choice  >  browser language
+let lang = qs.get('lang') || localStorage.getItem('frlang') ||
+  ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+if (!I18N[lang]) lang = 'en';
+const t = (k, ...a) => { const x = (I18N[lang] || I18N.en)[k]; return typeof x === 'function' ? x(...a) : x; };
+function applyLang() {
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-html]').forEach(el => el.innerHTML = t(el.dataset.i18nHtml));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  document.querySelectorAll('[data-i18n-title]').forEach(el => el.title = t(el.dataset.i18nTitle));
+  $('#langBtn').textContent = lang === 'zh' ? 'EN' : '中文';
+  $('#play').textContent = v.paused ? t('play') : t('pause');
+  if (cur) { $('#rdir').textContent = t('savedTo') + info.mdPath; renderList(); }
+  renderVideos();
+}
+
+// ---------- state ----------
+const $ = s => document.querySelector(s);
+const v = $('#v'), ov = $('#overlay'), octx = ov.getContext('2d'), stage = $('#stage');
+let videos = [], cur = null, info = { fps: 30 }, comments = [];
+let composing = null; // {id, time, frame, strokes:[], existing}
+let tool = 'rect', color = '#ff3b30', drawing = null, activeId = null;
+
+const fps = () => info.fps || 30;
+const frameOf = s => Math.floor(s * fps() + 1e-4);
+const fmt = s => { const m = Math.floor(s / 60), r = s - m * 60; return `${m}:${r.toFixed(3).padStart(6, '0')}`; };
+const toast = msg => { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove('show'), 1800); };
+const api = (path, body) => fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang, ...body }) } : undefined).then(r => r.json());
+
+$('#langBtn').onclick = async () => {
+  lang = lang === 'zh' ? 'en' : 'zh'; localStorage.setItem('frlang', lang); applyLang();
+  if (cur && comments.length) await api('/api/lang', { video: cur });  // re-write the Markdown in the new language
+};
+
+// ---------- video list ----------
+async function loadVideos() {
+  const r = await api('/api/videos');
+  videos = r.videos; document.title = `Frame Review · ${r.root}`;
+  renderVideos();
+}
+function renderVideos() {
+  const q = $('#filter').value.trim().toLowerCase();
+  const box = $('#vids'); box.innerHTML = '';
+  if (!videos.length) { box.innerHTML = `<div class="hint">${t('noVideos')}</div>`; return; }
+  for (const it of videos) {
+    if (q && !it.path.toLowerCase().includes(q)) continue;
+    const parts = it.path.split('/');
+    const el = document.createElement('div');
+    el.className = 'vid' + (cur === it.path ? ' sel' : '');
+    const when = new Date(it.mtime * 1000).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    el.innerHTML = (it.comments ? `<span class="cnt">${it.comments}</span>` : '') + '<div class="nm"></div><div class="dir"></div>';
+    el.querySelector('.nm').textContent = parts.at(-1);
+    el.querySelector('.dir').textContent = (parts.length > 1 ? parts.slice(0, -1).join('/') + ' · ' : '') + when;
+    el.onclick = () => openVideo(it.path);
+    box.appendChild(el);
+  }
+}
+$('#filter').oninput = renderVideos;
+
+async function openVideo(path, at) {
+  if (composing) cancelCompose();
+  cur = path; history.replaceState(null, '', location.pathname + location.search + '#v=' + encodeURIComponent(path));
+  info = await api('/api/info?v=' + encodeURIComponent(path));
+  comments = info.comments || [];
+  $('#general').value = info.general || '';
+  $('#vname').textContent = path.split('/').at(-1);
+  $('#rdir').textContent = t('savedTo') + info.mdPath;
+  $('#empty').style.display = 'none'; $('#badge').style.display = '';
+  v.src = '/video?v=' + encodeURIComponent(path);
+  if (at != null) v.addEventListener('loadedmetadata', () => seek(at), { once: true });
+  renderVideos(); renderList(); renderMarkers();
+}
+
+// ---------- playback ----------
+function togglePlay() { if (!cur) return; v.paused ? v.play() : v.pause(); }
+function stepFrames(n) {
+  if (!cur) return; v.pause();
+  const f = Math.max(0, frameOf(v.currentTime) + n);
+  v.currentTime = Math.min(v.duration || 1e9, (f + 0.5) / fps());
+}
+function seek(s) { v.currentTime = Math.max(0, Math.min(v.duration || s, s)); }
+$('#play').onclick = togglePlay;
+$('#rate').onchange = e => v.playbackRate = +e.target.value;
+v.addEventListener('play', () => $('#play').textContent = t('pause'));
+v.addEventListener('pause', () => $('#play').textContent = t('play'));
+v.addEventListener('click', () => { if (!composing) togglePlay(); });
+v.addEventListener('loadedmetadata', layoutOverlay);
+
+function tick() {
+  if (cur && v.duration) {
+    const s = v.currentTime, p = s / v.duration * 100;
+    $('#played').style.width = p + '%'; $('#head').style.left = `calc(${p}% - 1px)`;
+    $('#tcTime').textContent = fmt(s); $('#tcDur').textContent = fmt(v.duration);
+    $('#badge').textContent = `${fmt(s)} · ${t('frameN', frameOf(s))}`;
+    const fi = $('#frameIn'); if (document.activeElement !== fi) fi.value = frameOf(s);
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+const tl = $('#timeline');
+function tlSeek(e) { if (!v.duration) return; const r = tl.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * v.duration); }
+tl.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('mk') || composing) return;
+  v.pause(); tlSeek(e);
+  const mv = ev => tlSeek(ev), up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
+  addEventListener('mousemove', mv); addEventListener('mouseup', up);
+});
+
+function renderMarkers() {
+  const box = $('#markers'); box.innerHTML = '';
+  if (!v.duration) { v.addEventListener('loadedmetadata', renderMarkers, { once: true }); return; }
+  for (const c of comments) {
+    const m = document.createElement('div');
+    m.className = 'mk' + (c.done ? ' done' : '');
+    m.style.left = (c.time / v.duration * 100) + '%';
+    m.title = fmt(c.time) + ' ' + (c.text || '');
+    m.onclick = () => jumpTo(c);
+    box.appendChild(m);
+  }
+}
+
+// ---------- annotation layer ----------
+function videoRect() {
+  const W = stage.clientWidth, H = stage.clientHeight, vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+  const s = Math.min(W / vw, H / vh), w = vw * s, h = vh * s;
+  return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+function layoutOverlay() {
+  const r = videoRect(), dpr = devicePixelRatio || 1;
+  Object.assign(ov.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+  ov.width = Math.round(r.w * dpr); ov.height = Math.round(r.h * dpr);
+  redraw();
+}
+new ResizeObserver(layoutOverlay).observe(stage);
+
+const CIRCLED = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+const numMark = n => CIRCLED[n - 1] || `(${n})`;
+function bbox(st) {
+  const xs = st.pts.map(p => p[0]), ys = st.pts.map(p => p[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+function wrapText(ctx, text, maxW) {
+  const lines = [];
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const word of para.split(/(?<=\s)|(?=[　-鿿＀-￯])|(?<=[　-鿿＀-￯])/)) {
+      if (line && ctx.measureText(line + word).width > maxW) { lines.push(line.trimEnd()); line = ''; }
+      line += word;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+// label position: box → above its top-left (inside if no room); arrow → at the tail; pen → bbox top-left; text → the click point
+function labelBox(ctx, st, n, W, H) {
+  const fs = Math.max(13, W / 46), pad = fs * 0.35;
+  ctx.font = `600 ${fs}px -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif`;
+  const text = `${numMark(n)} ${st.label || ''}`.trimEnd();
+  const lines = wrapText(ctx, text, W * 0.32);
+  const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + pad * 2;
+  const h = lines.length * fs * 1.3 + pad * 1.4;
+  let x, y;
+  if (st.tool === 'arrow') {
+    const [a, b] = [st.pts[0], st.pts.at(-1)];
+    const ax = a[0] * W, ay = a[1] * H;
+    x = b[0] >= a[0] ? ax - w - 4 : ax + 4; y = ay - h / 2;
+  } else if (st.tool === 'text') {
+    x = st.pts[0][0] * W; y = st.pts[0][1] * H;
+  } else {
+    const [x0, y0, , y1] = bbox(st);
+    x = x0 * W; y = y0 * H - h - 4;                 // above the shape
+    if (y < 0) y = y1 * H + 4 + h <= H ? y1 * H + 4 : y0 * H + 4;  // else below it, else inside
+  }
+  x = Math.max(0, Math.min(W - w, x)); y = Math.max(0, Math.min(H - h, y));
+  return { x, y, w, h, fs, pad, lines };
+}
+function drawLabel(ctx, st, n, W, H) {
+  const L = labelBox(ctx, st, n, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.78)'; ctx.strokeStyle = st.color; ctx.lineWidth = Math.max(1.5, W / 640);
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(L.x, L.y, L.w, L.h, L.fs * 0.25) : ctx.rect(L.x, L.y, L.w, L.h);
+  ctx.fill(); ctx.stroke();
+  ctx.textBaseline = 'top';
+  L.lines.forEach((line, i) => {
+    const ty = L.y + L.pad * 0.7 + i * L.fs * 1.3;
+    if (i === 0) {  // the number uses the mark's color
+      const num = numMark(n);
+      ctx.fillStyle = st.color; ctx.fillText(num, L.x + L.pad, ty);
+      ctx.fillStyle = '#fff'; ctx.fillText(line.slice(num.length), L.x + L.pad + ctx.measureText(num).width, ty);
+    } else { ctx.fillStyle = '#fff'; ctx.fillText(line, L.x + L.pad, ty); }
+  });
+}
+function drawStroke(ctx, st, W, H) {
+  if (st.tool === 'text') return;
+  const lw = Math.max(2, W / 320);
+  ctx.strokeStyle = st.color; ctx.fillStyle = st.color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const P = st.pts.map(([x, y]) => [x * W, y * H]);
+  if (P.length < 2) return;
+  ctx.beginPath();
+  if (st.tool === 'pen') { ctx.moveTo(...P[0]); for (const p of P.slice(1)) ctx.lineTo(...p); ctx.stroke(); }
+  else if (st.tool === 'rect') { const [a, b] = [P[0], P.at(-1)]; ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  else if (st.tool === 'arrow') {
+    const [a, b] = [P[0], P.at(-1)], ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = lw * 5;
+    ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(...b);
+    ctx.lineTo(b[0] - hl * Math.cos(ang - 0.45), b[1] - hl * Math.sin(ang - 0.45));
+    ctx.lineTo(b[0] - hl * Math.cos(ang + 0.45), b[1] - hl * Math.sin(ang + 0.45));
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawAll(ctx, strokes, W, H) {
+  strokes.forEach(st => drawStroke(ctx, st, W, H));
+  strokes.forEach((st, i) => drawLabel(ctx, st, i + 1, W, H));  // labels on top of every line
+}
+function redraw() {
+  octx.clearRect(0, 0, ov.width, ov.height);
+  if (!composing) return;
+  drawAll(octx, composing.strokes, ov.width, ov.height);
+  if (drawing) drawStroke(octx, drawing, ov.width, ov.height);
+}
+function normPt(e) { const r = ov.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
+
+// after a shape is drawn, a small input pops up next to it for the label
+const li = $('#labelInput');
+let labeling = null;
+function askLabel(st) {
+  labeling = st;
+  const n = composing.strokes.indexOf(st) + 1;
+  const L = labelBox(octx, st, n, ov.width, ov.height), dpr = devicePixelRatio || 1;
+  const sr = stage.getBoundingClientRect(), orr = ov.getBoundingClientRect();
+  const w = Math.min(320, orr.width * 0.6);
+  li.style.width = w + 'px';
+  li.style.left = Math.max(0, Math.min(sr.width - w, orr.left - sr.left + L.x / dpr)) + 'px';
+  li.style.top = Math.max(0, Math.min(sr.height - 34, orr.top - sr.top + L.y / dpr)) + 'px';
+  li.style.borderColor = st.color;
+  li.placeholder = `${numMark(n)} ${st.tool === 'text' ? t('textPh') : t('labelPh')}`;
+  li.value = st.label || ''; li.style.display = 'block'; li.focus();
+}
+function finishLabel(keep) {
+  if (!labeling) return;
+  const st = labeling; labeling = null; li.style.display = 'none';
+  st.label = keep ? li.value.trim() : (st.label || '');
+  if (st.tool === 'text' && !st.label) composing.strokes.splice(composing.strokes.indexOf(st), 1);
+  redraw(); $('#ctext').focus();
+}
+li.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); finishLabel(true); saveCompose(); }
+  else if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); e.stopPropagation(); finishLabel(true); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finishLabel(false); }
+});
+li.addEventListener('blur', () => finishLabel(true));
+
+ov.addEventListener('mousedown', e => {
+  if (!composing) return;
+  e.preventDefault();
+  if (labeling) finishLabel(true);
+  if (tool === 'text') {
+    const st = { tool, color, pts: [normPt(e)], label: '' };
+    composing.strokes.push(st); askLabel(st); return;
+  }
+  drawing = { tool, color, pts: [normPt(e)], label: '' };
+  const mv = ev => { const p = normPt(ev); if (tool === 'pen') drawing.pts.push(p); else drawing.pts[1] = p; redraw(); };
+  const up = () => {
+    removeEventListener('mousemove', mv); removeEventListener('mouseup', up);
+    const st = drawing; drawing = null;
+    const [x0, y0, x1, y1] = bbox(st);
+    if (st.pts.length > 1 && (x1 - x0) + (y1 - y0) > 0.01) { composing.strokes.push(st); redraw(); askLabel(st); }
+    else redraw();
+  };
+  addEventListener('mousemove', mv); addEventListener('mouseup', up);
+});
+document.querySelectorAll('.tool').forEach(b => b.onclick = () => {
+  tool = b.dataset.tool; document.querySelectorAll('.tool').forEach(x => x.classList.toggle('on', x === b));
+});
+document.querySelectorAll('.swatch').forEach(b => b.onclick = () => {
+  color = b.dataset.c; document.querySelectorAll('.swatch').forEach(x => x.classList.toggle('on', x === b));
+});
+$('#undo').onclick = () => { if (composing) { if (labeling) finishLabel(false); composing.strokes.pop(); redraw(); } };
+
+// ---------- notes ----------
+function nextId() {
+  const n = comments.reduce((m, c) => Math.max(m, parseInt(c.id, 10) || 0), 0) + 1;
+  return String(n).padStart(3, '0');
+}
+function startCompose(existing) {
+  if (!cur) return;
+  v.pause();
+  if (existing) seek(existing.time);
+  const s = existing ? existing.time : v.currentTime;
+  composing = { id: existing ? existing.id : nextId(), time: s, frame: frameOf(s),
+    strokes: existing && existing.marks ? JSON.parse(JSON.stringify(existing.marks)) : [], existing };
+  stage.classList.remove('idle');
+  $('#composer').classList.add('show');
+  $('#ctime').textContent = `${fmt(s)} · ${t('frameN', composing.frame)}`;
+  $('#ctext').value = existing ? existing.text : '';
+  layoutOverlay(); $('#ctext').focus();
+}
+function cancelCompose() {
+  labeling = null; li.style.display = 'none';
+  composing = null; drawing = null; stage.classList.add('idle');
+  $('#composer').classList.remove('show'); redraw();
+}
+async function snapshot() {
+  // make sure the video sits exactly on the frame being noted
+  if (Math.abs(v.currentTime - composing.time) > 1e-3 || v.seeking) {
+    v.currentTime = composing.time; await new Promise(r => v.addEventListener('seeked', r, { once: true }));
+  }
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, c.width, c.height);
+  const clean = composing.strokes.length ? c.toDataURL('image/png') : null;
+  drawAll(ctx, composing.strokes, c.width, c.height);
+  return { png: c.toDataURL('image/png'), pngClean: clean };
+}
+async function saveCompose() {
+  if (!composing) return;
+  if (labeling) finishLabel(true);
+  const text = $('#ctext').value.trim();
+  if (!text && !composing.strokes.length) { toast(t('needContent')); return; }
+  const ex = composing.existing;
+  const comment = {
+    id: composing.id, time: composing.time, frame: composing.frame, text,
+    done: ex ? !!ex.done : false,
+    drawn: composing.strokes.length > 0,
+    marks: composing.strokes,
+    image: ex ? ex.image : undefined, clean: ex ? ex.clean : undefined,
+    created: ex ? ex.created : new Date().toISOString(),
+  };
+  const keepOld = ex && ex.image && !ex.marks && !composing.strokes.length;  // legacy note without mark data
+  const shots = keepOld ? {} : await snapshot();
+  const data = await api('/api/comment', { video: cur, comment, ...shots });
+  comments = data.comments; info.mdPath = data.mdPath; info.mdAbs = data.mdAbs; activeId = comment.id;
+  cancelCompose(); renderList(); renderMarkers(); bumpCount();
+  toast(t('saved'));
+}
+$('#csave').onclick = saveCompose;
+$('#ccancel').onclick = cancelCompose;
+$('#addBtn').onclick = () => startCompose();
+
+function bumpCount() { const it = videos.find(x => x.path === cur); if (it) { it.comments = comments.length; renderVideos(); } }
+
+function jumpTo(c) {
+  if (composing) cancelCompose();
+  v.pause(); seek(c.time); activeId = c.id; renderList();
+  document.getElementById('c' + c.id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function renderList() {
+  const box = $('#list'); box.innerHTML = '';
+  if (!cur) return;
+  if (!comments.length) { box.innerHTML = `<div class="hint" style="padding:8px">${t('empty')}</div>`; return; }
+  const no = c => parseInt(c.id, 10);
+  const newest = [...comments].sort((a, b) => (b.created || '').localeCompare(a.created || '') || no(b) - no(a));
+  newest.forEach(c => {
+    const el = document.createElement('div');
+    el.id = 'c' + c.id;
+    el.className = 'c' + (c.done ? ' done' : '') + (c.id === activeId ? ' active' : '');
+    el.innerHTML = `<div><span class="t">#${no(c)} · ${fmt(c.time)} · ${t('frameN', c.frame)}</span></div>
+      <div class="txt"></div>
+      ${c.image ? `<img loading="lazy" src="/shot?v=${encodeURIComponent(cur)}&f=${encodeURIComponent(c.image)}&_=${Date.now() % 100000}">` : ''}
+      <div class="ops"><label><input type="checkbox" ${c.done ? 'checked' : ''}> ${t('fixed')}</label><span style="flex:1"></span><button data-a="edit">${t('edit')}</button><button data-a="del">${t('del')}</button></div>`;
+    const marks = (c.marks || []).map((m, k) => m.label ? `${numMark(k + 1)} ${m.label}` : '').filter(Boolean);
+    el.querySelector('.txt').textContent = [c.text, ...marks].filter(Boolean).join('\n') || t('onlyMarks');
+    el.querySelector('.t').onclick = () => jumpTo(c);
+    const img = el.querySelector('img'); if (img) img.onclick = () => jumpTo(c);
+    el.querySelector('input').onchange = async e => {
+      const data = await api('/api/comment', { video: cur, comment: { ...c, done: e.target.checked } });
+      comments = data.comments; renderList(); renderMarkers();
+    };
+    el.querySelector('[data-a=edit]').onclick = () => startCompose(c);
+    el.querySelector('[data-a=del]').onclick = async () => {
+      if (!confirm(t('confirmDel', no(c)))) return;
+      const data = await api('/api/delete', { video: cur, id: c.id });
+      comments = data.comments; renderList(); renderMarkers(); bumpCount();
+    };
+    box.appendChild(el);
+  });
+}
+$('#general').addEventListener('change', async e => {
+  if (!cur) return;
+  await api('/api/general', { video: cur, text: e.target.value }); toast(t('generalSaved'));
+});
+$('#copyBtn').onclick = async () => {
+  if (!cur) return;
+  const msg = t('handoff', info.mdAbs || info.mdPath);
+  try { await navigator.clipboard.writeText(msg); toast(t('copied')); }
+  catch { prompt('', msg); }
+};
+
+// ---------- keyboard ----------
+addEventListener('keydown', e => {
+  const typing = ['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName);
+  if (composing) {
+    if (e.key === 'Escape') { e.preventDefault(); cancelCompose(); }
+    else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); saveCompose(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !typing) { e.preventDefault(); $('#undo').click(); }
+    return;
+  }
+  if (typing) return;
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? stepFrames(1) : seek(v.currentTime + 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); e.shiftKey ? stepFrames(-1) : seek(v.currentTime - 1); }
+  else if (e.key === '.') { e.preventDefault(); stepFrames(1); }
+  else if (e.key === ',') { e.preventDefault(); stepFrames(-1); }
+  else if (e.key === 'g' || e.key === 'G') { e.preventDefault(); v.pause(); $('#frameIn').focus(); $('#frameIn').select(); }
+  else if (e.key === 'c' || e.key === 'C' || e.key === 'Enter') { e.preventDefault(); startCompose(); }
+  else if (e.key === ']' || e.key === '[') {
+    const s = v.currentTime, dir = e.key === ']' ? 1 : -1;
+    const list = dir > 0 ? comments.filter(c => c.time > s + 1e-3) : comments.filter(c => c.time < s - 1e-3).reverse();
+    if (list[0]) jumpTo(list[0]);
+  }
+});
+$('#frameIn').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter') {
+    const f = parseInt($('#frameIn').value, 10);
+    if (!isNaN(f) && cur) { v.pause(); seek((Math.max(0, f) + 0.5) / fps()); }
+    $('#frameIn').blur();
+  } else if (e.key === 'Escape') $('#frameIn').blur();
+});
+
+applyLang();
+loadVideos().then(() => {
+  // deep links: #v=<path>&t=<seconds>   ·   #v=<path>&note=<n> (jump to a note)   ·   add &edit=1 to open it
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!h.get('v')) return;
+  openVideo(h.get('v'), h.get('t') != null ? parseFloat(h.get('t')) : null).then(() => {
+    const n = h.get('note'); if (!n) return;
+    const c = comments.find(x => parseInt(x.id, 10) === parseInt(n, 10)); if (!c) return;
+    v.addEventListener('loadedmetadata', () => h.get('edit') ? startCompose(c) : jumpTo(c), { once: true });
+  });
+});
+</script>
+</body>
+</html>

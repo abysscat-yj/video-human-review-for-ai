@@ -1,0 +1,6 @@
+# review output written next to videos
+*_review/
+*_审片/
+__pycache__/
+*.pyc
+.DS_Store
