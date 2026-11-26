@@ -30,8 +30,8 @@ It's a tiny local web app: one Python file, no dependencies, nothing uploaded an
 Requires Python 3.7+ and a modern browser (Chrome, Edge, Safari, Firefox). [FFmpeg](https://ffmpeg.org/download.html) is optional but recommended so frame numbers use the video's real frame rate (otherwise 30 fps is assumed).
 
 ```bash
-git clone https://github.com/abysscat-yj/frame-review.git
-cd frame-review
+git clone https://github.com/abysscat-yj/video-human-review-for-ai.git
+cd video-human-review-for-ai
 python3 framereview.py demo --open        # try it on the bundled 8-second sample
 ```
 

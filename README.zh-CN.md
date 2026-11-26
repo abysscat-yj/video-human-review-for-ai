@@ -30,8 +30,8 @@
 需要 Python 3.7 以上和一个现代浏览器（Chrome、Edge、Safari、Firefox）。建议装上 [FFmpeg](https://ffmpeg.org/download.html)，这样帧号会按视频真实帧率算；没装的话按 30 fps 算。
 
 ```bash
-git clone https://github.com/abysscat-yj/frame-review.git
-cd frame-review
+git clone https://github.com/abysscat-yj/video-human-review-for-ai.git
+cd video-human-review-for-ai
 python3 framereview.py demo --open        # 先用自带的 8 秒示例视频试试
 ```
 
