@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Frame Review — pause any frame of a local video, draw on it, write a note,
+"""Video Human Review — pause any frame of a local video, draw on it, write a note,
 and get a Markdown file + annotated screenshots that an AI assistant can read.
 
-Frame Review / 逐帧审片：本地看片，暂停在任意一帧圈画、写意见，
+Video Human Review / 视频人工审片：本地看片，暂停在任意一帧圈画、写意见，
 导出一份 Markdown 和带标注的截图，直接交给 AI 助手统一修改。
 
 Usage / 用法:
-    python3 framereview.py [VIDEO_DIR] [--port 8765] [--host 127.0.0.1] [--open]
+    python3 video_human_review.py [VIDEO_DIR] [--port 8765] [--host 127.0.0.1] [--open]
 
 No third-party packages. ffprobe (from FFmpeg) is optional but recommended,
 it is used to read the real frame rate. 只用标准库；装了 ffprobe 能读出准确帧率。
@@ -26,7 +26,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 HERE = Path(__file__).resolve().parent
 WEB = HERE / "web"
@@ -370,9 +370,9 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     global ROOT
-    ap = argparse.ArgumentParser(description="Frame Review — frame-accurate video review notes for AI assistants.")
+    ap = argparse.ArgumentParser(description="Video Human Review — frame-accurate video review notes for AI assistants.")
     ap.add_argument("root", nargs="?", default=".", help="folder to scan for videos (default: current folder)")
-    ap.add_argument("--port", type=int, default=int(os.environ.get("FRAME_REVIEW_PORT", 8765)))
+    ap.add_argument("--port", type=int, default=int(os.environ.get("VIDEO_REVIEW_PORT", 8765)))
     ap.add_argument("--host", default="127.0.0.1", help="bind address (default 127.0.0.1, local only)")
     ap.add_argument("--open", action="store_true", help="open the browser after starting")
     ap.add_argument("--version", action="version", version=__version__)
@@ -382,7 +382,7 @@ def main():
         sys.exit(f"not a folder: {ROOT}")
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     url = f"http://{'localhost' if a.host in ('127.0.0.1', '0.0.0.0') else a.host}:{a.port}"
-    print(f"Frame Review {__version__}  →  {url}\nvideos from: {ROOT}\n(Ctrl+C to stop)", flush=True)
+    print(f"Video Human Review {__version__}  →  {url}\nvideos from: {ROOT}\n(Ctrl+C to stop)", flush=True)
     if not shutil.which("ffprobe"):
         print("note: ffprobe not found, assuming 30 fps (install FFmpeg for exact frame numbers)", flush=True)
     if a.open:

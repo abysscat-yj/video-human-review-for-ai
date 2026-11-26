@@ -1,4 +1,4 @@
-# Renders demo/sample.mp4, the 8-second clip bundled with Frame Review (sunset, hills, a bird, a title).
+# Renders demo/sample.mp4, the 8-second clip bundled with Video Human Review (sunset, hills, a bird, a title).
 # Needs numpy, pillow and ffmpeg; the font path is macOS-specific.
 #   uv run --no-project --with numpy --with pillow python demo/make_sample.py demo/sample.mp4
 import math, subprocess, sys
@@ -39,7 +39,7 @@ for i in range(FPS * SEC):
     wing = 18 * math.sin(i * 0.6)
     d.line([(bx - 26, by - wing), (bx, by), (bx + 26, by - wing)], fill=(30, 20, 40, 255), width=5)
     a = int(255 * min(1, max(0, (k - 0.15) / 0.15)))
-    d.text((W / 2, 120), "Frame Review", font=font, fill=(255, 255, 255, a), anchor="mm")
+    d.text((W / 2, 120), "Video Human Review", font=font, fill=(255, 255, 255, a), anchor="mm")
     d.text((W / 2, 180), "sample clip · 8 s · 30 fps", font=small, fill=(255, 255, 255, int(a * 0.8)), anchor="mm")
     ff.stdin.write(im.convert("RGB").tobytes())
 ff.stdin.close(); ff.wait()

@@ -1,16 +1,16 @@
 <div align="center">
 
-# Frame Review
+# Video Human Review
 
 **Pause any frame, draw on it, write a note — and hand the whole review to your AI assistant in one line.**
 
 English · [中文](README.zh-CN.md)
 
-![Frame Review: a note being written on frame 96, with a labeled box and arrow on the video](docs/ui-en.png)
+![Video Human Review: a note being written on frame 96, with a labeled box and arrow on the video](docs/ui-en.png)
 
 </div>
 
-Reviewing a video with an AI assistant usually means: pause, take a screenshot, crop it, paste it into chat, type "at 0:03 the title is too small…", repeat twenty times. **Frame Review** turns that into: pause → draw → type → next. When you're done, it has already written a Markdown file with every note (timecode, exact frame number, where on screen, what to change) plus an annotated screenshot for each one. You paste a single sentence to Claude, ChatGPT, Codex, Cursor or any agent that can read files, and it works through the list.
+Reviewing a video with an AI assistant usually means: pause, take a screenshot, crop it, paste it into chat, type "at 0:03 the title is too small…", repeat twenty times. **Video Human Review** turns that into: pause → draw → type → next. When you're done, it has already written a Markdown file with every note (timecode, exact frame number, where on screen, what to change) plus an annotated screenshot for each one. You paste a single sentence to Claude, ChatGPT, Codex, Cursor or any agent that can read files, and it works through the list.
 
 It's a tiny local web app: one Python file, no dependencies, nothing uploaded anywhere.
 
@@ -20,7 +20,7 @@ It's a tiny local web app: one Python file, no dependencies, nothing uploaded an
 
 - **Frame-accurate** — shows the exact frame number (reads the real frame rate with `ffprobe`), step frame by frame, or type a frame number to jump there.
 - **Draw on the frame** — box, arrow, freehand pen and free text, in four colors. Every mark gets its own label right next to it, numbered ①②③ so the text and the picture line up.
-- **AI-readable export** — `review.md` lists each note with time, frame, the mark's position in words (`box (top-middle, x 32%–68%, y 10%–28%)`) and your label, plus a path to the annotated screenshot and a clean copy of the frame.
+- **AI-readable export** — `review.md` lists each note with time, frame, the mark's position in words (`box (top-middle, x 24%–76%, y 10%–28%)`) and your label, plus a path to the annotated screenshot and a clean copy of the frame.
 - **Review workflow** — notes show up as dots on the timeline, newest first in the sidebar; edit, delete, tick "Done", jump between notes with `[` `]`, and keep overall notes that aren't tied to a frame.
 - **English / 中文** — switch the UI any time; the Markdown file is rewritten in the same language.
 - **Local and private** — serves only the folder you point it at, binds to `127.0.0.1` by default, and writes notes next to each video.
@@ -32,13 +32,13 @@ Requires Python 3.7+ and a modern browser (Chrome, Edge, Safari, Firefox). [FFmp
 ```bash
 git clone https://github.com/abysscat-yj/video-human-review-for-ai.git
 cd video-human-review-for-ai
-python3 framereview.py demo --open        # try it on the bundled 8-second sample
+python3 video_human_review.py demo --open        # try it on the bundled 8-second sample
 ```
 
 Then point it at your own videos:
 
 ```bash
-python3 framereview.py ~/Videos/my-project --open
+python3 video_human_review.py ~/Videos/my-project --open
 ```
 
 Every video under that folder (`.mp4 .mov .m4v .webm .mkv`, subfolders included) appears in the left sidebar, newest first.
@@ -46,7 +46,7 @@ Every video under that folder (`.mp4 .mov .m4v .webm .mkv`, subfolders included)
 | Option | Default | |
 |---|---|---|
 | `VIDEO_DIR` | current folder | folder to scan for videos |
-| `--port` | `8765` | also `FRAME_REVIEW_PORT` |
+| `--port` | `8765` | also `VIDEO_REVIEW_PORT` |
 | `--host` | `127.0.0.1` | use `0.0.0.0` only if you want others on your network to reach it |
 | `--open` | off | open the browser after starting |
 
@@ -70,7 +70,7 @@ Click **Copy for AI** and paste. The message points to `review.md`, which looks 
 Opening shot: the title and the sun compete for attention. Let the title win.
 
 On-screen annotations (numbers match the screenshot):
-- ① box (top-middle, x 32%–68%, y 10%–28%): Title too small — make it 1.5× bigger
+- ① box (top-middle, x 24%–76%, y 10%–28%): Title too small — make it 1.5× bigger
 - ② arrow (pointing at center, x 56%, y 56%): Sun is too bright, steals focus
 
 Screenshot: `renders/sunset_v2_review/001_0m03.200s.png` (annotated)

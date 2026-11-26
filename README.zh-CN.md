@@ -1,16 +1,16 @@
 <div align="center">
 
-# Frame Review 逐帧审片
+# Video Human Review 视频人工审片
 
 **暂停在任意一帧，直接在画面上圈画、写意见，审完一句话交给 AI 统一修改。**
 
 [English](README.md) · 中文
 
-![Frame Review：在第 96 帧写意见，画面上有带编号和文字的框和箭头](docs/ui-zh.png)
+![Video Human Review：在第 96 帧写意见，画面上有带编号和文字的框和箭头](docs/ui-zh.png)
 
 </div>
 
-和 AI 一起改视频时，审片通常是这样的：暂停、截图、裁剪、粘贴到对话框、打字说「0:03 那里片名太小……」，一条意见重复一遍。**Frame Review** 把它变成：暂停 → 圈画 → 打字 → 下一条。审完时，它已经写好了一份 Markdown，每条意见都有时间码、准确帧号、画面位置和要改什么，外加一张带标注的截图。你只要复制一句话给 Claude、ChatGPT、Codex、Cursor 等能读文件的 AI，它就能照着清单逐条修改。
+和 AI 一起改视频时，审片通常是这样的：暂停、截图、裁剪、粘贴到对话框、打字说「0:03 那里片名太小……」，一条意见重复一遍。**Video Human Review** 把它变成：暂停 → 圈画 → 打字 → 下一条。审完时，它已经写好了一份 Markdown，每条意见都有时间码、准确帧号、画面位置和要改什么，外加一张带标注的截图。你只要复制一句话给 Claude、ChatGPT、Codex、Cursor 等能读文件的 AI，它就能照着清单逐条修改。
 
 它是一个很小的本地网页工具：一个 Python 文件，不用装任何依赖，视频和意见都不会上传。
 
@@ -20,7 +20,7 @@
 
 - **精确到帧**：显示准确帧号（用 `ffprobe` 读视频真实帧率），可以一帧一帧走，也可以输入帧号直接跳过去。
 - **在画面上圈画**：框、箭头、画笔、文字四种工具，四种颜色。每处标注旁边都能配一句话，并自动编号 ①②③，文字和图对得上。
-- **AI 读得懂的导出**：`review.md` 里每条意见都有时间、帧号，标注的位置用文字写出来（`框（画面中上，x 32%–68%，y 10%–28%）`），再加上你配的话、带标注截图的路径和一张无标注的原画面。
+- **AI 读得懂的导出**：`review.md` 里每条意见都有时间、帧号，标注的位置用文字写出来（`框（画面中上，x 24%–76%，y 10%–28%）`），再加上你配的话、带标注截图的路径和一张无标注的原画面。
 - **审片流程**：意见在进度条上显示成小圆点，右侧列表最新的在最上面；可以修改、删除、勾「已改」，用 `[` `]` 在意见之间跳转，还有一栏不针对某一帧的整体意见。
 - **中文 / English**：界面随时切换，导出的 Markdown 也会改写成同一种语言。
 - **本地、私密**：只读取你指定的目录，默认只监听 `127.0.0.1`，意见就写在每个视频旁边。
@@ -32,13 +32,13 @@
 ```bash
 git clone https://github.com/abysscat-yj/video-human-review-for-ai.git
 cd video-human-review-for-ai
-python3 framereview.py demo --open        # 先用自带的 8 秒示例视频试试
+python3 video_human_review.py demo --open        # 先用自带的 8 秒示例视频试试
 ```
 
 然后指向你自己的视频目录：
 
 ```bash
-python3 framereview.py ~/Videos/my-project --open
+python3 video_human_review.py ~/Videos/my-project --open
 ```
 
 这个目录下（包括子目录）所有 `.mp4 .mov .m4v .webm .mkv` 都会出现在左侧列表，最新的在最上面。
@@ -46,7 +46,7 @@ python3 framereview.py ~/Videos/my-project --open
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `VIDEO_DIR` | 当前目录 | 要扫描视频的目录 |
-| `--port` | `8765` | 也可以用环境变量 `FRAME_REVIEW_PORT` |
+| `--port` | `8765` | 也可以用环境变量 `VIDEO_REVIEW_PORT` |
 | `--host` | `127.0.0.1` | 只有想让局域网里的人访问时才用 `0.0.0.0` |
 | `--open` | 关 | 启动后自动打开浏览器 |
 
@@ -70,7 +70,7 @@ python3 framereview.py ~/Videos/my-project --open
 开场这一帧，片名和太阳在抢视线，让片名赢。
 
 画面标注（编号和截图上的一致）：
-- ① 框（画面中上，x 32%–68%，y 10%–28%）：片名太小，放大到 1.5 倍
+- ① 框（画面中上，x 24%–76%，y 10%–28%）：片名太小，放大到 1.5 倍
 - ② 箭头（指向画面正中 x 56%，y 56%）：太阳太亮，抢了片名
 
 截图：`drafts/opening_draft_review/001_0m03.200s.png`（带标注）

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Frame Review</title>
+<title>Video Human Review</title>
 <style>
   :root { --bg:#16171a; --panel:#1f2125; --line:#2e3137; --fg:#e8e6e1; --dim:#8d9099; --acc:#e0533d; --ok:#5fb37a; }
   * { box-sizing: border-box; }
@@ -75,7 +75,7 @@
 <body>
 <div id="app">
   <div id="left">
-    <div id="brand"><b>Frame Review</b><button id="langBtn" title="中文 / English"></button></div>
+    <div id="brand"><b>Video Human Review</b><button id="langBtn" title="中文 / English"></button></div>
     <input id="filter" data-i18n-ph="search">
     <div id="vids"></div>
   </div>
@@ -180,7 +180,7 @@ const I18N = {
 };
 const qs = new URLSearchParams(location.search);
 // language: ?lang=zh|en  >  last choice  >  browser language
-let lang = qs.get('lang') || localStorage.getItem('frlang') ||
+let lang = qs.get('lang') || localStorage.getItem('vhr-lang') ||
   ((navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en');
 if (!I18N[lang]) lang = 'en';
 const t = (k, ...a) => { const x = (I18N[lang] || I18N.en)[k]; return typeof x === 'function' ? x(...a) : x; };
@@ -210,14 +210,14 @@ const toast = msg => { const el = $('#toast'); el.textContent = msg; el.classLis
 const api = (path, body) => fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang, ...body }) } : undefined).then(r => r.json());
 
 $('#langBtn').onclick = async () => {
-  lang = lang === 'zh' ? 'en' : 'zh'; localStorage.setItem('frlang', lang); applyLang();
+  lang = lang === 'zh' ? 'en' : 'zh'; localStorage.setItem('vhr-lang', lang); applyLang();
   if (cur && comments.length) await api('/api/lang', { video: cur });  // re-write the Markdown in the new language
 };
 
 // ---------- video list ----------
 async function loadVideos() {
   const r = await api('/api/videos');
-  videos = r.videos; document.title = `Frame Review · ${r.root}`;
+  videos = r.videos; document.title = `Video Human Review · ${r.root}`;
   renderVideos();
 }
 function renderVideos() {
